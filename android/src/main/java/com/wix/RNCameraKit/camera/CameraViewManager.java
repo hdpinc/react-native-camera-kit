@@ -10,12 +10,15 @@ import android.view.Display;
 import android.view.OrientationEventListener;
 import android.view.WindowManager;
 
+// import android.util.Log;
+
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.wix.RNCameraKit.Utils;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -187,48 +190,119 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
         return info;
     }
 
+    private static List<Camera.Size> getValidPreviewSizes(List<Camera.Size> previewSizes, List<Camera.Size> pictureSizes) {
+        List<Camera.Size> validPreviewSizes = new ArrayList<Camera.Size>();
+        for (Camera.Size previewSize : previewSizes) {
+
+            // Log.d( "DEBUG", String.format(".... OriginalPreviewSize: width=%5d, height=%5d, ratio=%5f", previewSize.width, previewSize.height, (double)previewSize.height/previewSize.width) );
+           
+            for (Camera.Size pictureSize : pictureSizes) {
+                double previewRatio = (double)previewSize.width/previewSize.height;
+                double pictureRatio = (double)pictureSize.width/pictureSize.height;
+                // 同じ比率のものが双方に存在する場合のみ、有効なPreviewSizeとする。
+                if( previewRatio == pictureRatio ) {
+
+                    // 特定の機種の特定の解像度は、比率があっていてもずれてしまうケースがあるため、ここで個別に弾く。
+                    // TODO:
+
+                    validPreviewSizes.add(previewSize);
+                    break;
+                }
+            }
+        }
+        return validPreviewSizes;
+    }
+
     private static Camera.Size getOptimalPreviewSize(List<Camera.Size> sizes, int w, int h) {
-        final double ASPECT_TOLERANCE = 0.1;
-        double targetRatio=(double)h / w;
         if (sizes == null) return null;
+        final double ASPECT_TOLERANCE = 0.1;
+        // 縦長を想定した比較対象の比率を取得する。
+        double targetRatio=(double)h / w;
         Camera.Size optimalSize = null;
         double minDiff = Double.MAX_VALUE;
         for (Camera.Size size : sizes) {
+            // PreviewSizeは、widthの方が大きい状態で入力されているため、比較対象と合わせるためには下記のようになる。
             double ratio = (double) size.width / size.height;
+
+            // Log.d( "DEBUG", String.format(".... ValidPreviewSize: width=%5d, height=%5d, ratio=%5f, diff=%5f", size.width, size.height, (double)size.height/size.width, Math.abs(ratio - targetRatio)) );
+
+            // 比率差が許容値よりも大きなものはスキップする。
             if (Math.abs(ratio - targetRatio) > ASPECT_TOLERANCE) continue;
+            // PreviewSizeの小さな方と、描画サイズの大きな方の差分を取り、一番近いサイズを取得する。
             if (Math.abs(size.height - h) < minDiff) {
                 optimalSize = size;
                 minDiff = Math.abs(size.height - h);
             }
         }
+        // 許容値によりすべてのサイズが合わなかった場合
         if (optimalSize == null) {
             minDiff = Double.MAX_VALUE;
+            double minRatio = Double.MAX_VALUE;
             for (Camera.Size size : sizes) {
-                if (Math.abs(size.height - h) < minDiff) {
-                    optimalSize = size;
-                    minDiff = Math.abs(size.height - h);
+                double ratio = (double) size.width / size.height;
+                // 比率の差が同じか小さい場合のみ処理を行う。
+                if (Math.abs(ratio - targetRatio) <= minRatio) {
+                    minRatio = Math.abs(ratio - targetRatio);
+                    // サイズがより近いものを選択する。
+                    if (Math.abs(size.height - h) < minDiff) {
+                        optimalSize = size;
+                        minDiff = Math.abs(size.height - h);
+                    }
                 }
             }
         }
+
+        // Log.d( "DEBUG", String.format("**** OptimalSize: width=%5d, height=%5d, ratio=%5f", optimalSize.width, optimalSize.height, (double)optimalSize.height/optimalSize.width) );
+
+        return optimalSize;
+    }
+
+    private static Camera.Size getOptimalPictureSize(Camera.Size previewSize, List<Camera.Size> pictureSizes) {
+        Camera.Size optimalSize = null;
+        double previewRatio = (double)previewSize.width/previewSize.height;
+        double minDiff = Double.MAX_VALUE;
+        for (Camera.Size pictureSize : pictureSizes) {
+            double pictureRatio = (double)pictureSize.width/pictureSize.height;
+
+            // Log.d( "DEBUG", String.format(".... OriginalPictureSize: width=%5d, height=%5d, ratio=%5f", pictureSize.width, pictureSize.height, (double)pictureSize.height/pictureSize.width) );
+
+            // 同じ比率のものしか認めない。
+            if( previewRatio == pictureRatio ) {
+                // サイズがより近いものを選択する。
+                if (Math.abs(previewSize.height - pictureSize.height) < minDiff) {
+                    optimalSize = pictureSize;
+                    minDiff = Math.abs(previewSize.height - pictureSize.height);
+                }
+            }
+        }
+
+        // Log.d( "DEBUG", String.format("**** OptimalSize: width=%5d, height=%5d, ratio=%5f", optimalSize.width, optimalSize.height, (double)optimalSize.height/optimalSize.width) );
+
         return optimalSize;
     }
 
     private static void updateCameraSize() {
         try {
             Camera camera = CameraViewManager.getCamera();
+            if (camera == null) return;
 
             WindowManager wm = (WindowManager) reactContext.getSystemService(Context.WINDOW_SERVICE);
             Display display = wm.getDefaultDisplay();
             Point size = new Point();
+            // 取得されるサイズは、解像度と同じサイズの横幅と、ヘッダーとフッターを除いた縦幅となる。
             display.getSize(size);
+
+            // Log.d( "DEBUG", String.format("**** DisplaySize: width=%5d, height=%5d, ratio=%5f", size.x, size.y, (double)size.x/size.y) );
+
+            // Camera API 1 では、16:9よりも縦長の解像度をサポートしていないため、16:9に合わせる。
             size.y = Utils.convertDeviceHeightToSupportedAspectRatio(size.x, size.y);
-            if (camera == null) return;
             List<Camera.Size> supportedPreviewSizes = camera.getParameters().getSupportedPreviewSizes();
             List<Camera.Size> supportedPictureSizes = camera.getParameters().getSupportedPictureSizes();
-            Camera.Size optimalSize = getOptimalPreviewSize(supportedPreviewSizes, size.x, size.y);
-            Camera.Size optimalPictureSize = getOptimalPreviewSize(supportedPictureSizes, size.x, size.y);
+            List<Camera.Size> validPreviewSizes = getValidPreviewSizes(supportedPreviewSizes,supportedPictureSizes);
+            Camera.Size optimalPreviewSize = getOptimalPreviewSize(validPreviewSizes, size.x, size.y);
+            Camera.Size optimalPictureSize = getOptimalPictureSize(optimalPreviewSize, supportedPictureSizes);
             Camera.Parameters parameters = camera.getParameters();
-            parameters.setPreviewSize(optimalSize.width, optimalSize.height);
+            parameters.setPreviewSize(optimalPreviewSize.width, optimalPreviewSize.height);
             parameters.setPictureSize(optimalPictureSize.width, optimalPictureSize.height);
             parameters.setFlashMode(flashMode);
             camera.setParameters(parameters);
