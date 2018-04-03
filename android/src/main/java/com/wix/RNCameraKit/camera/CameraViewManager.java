@@ -190,20 +190,29 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
         return info;
     }
 
+    // 簡易的な計算機イプシロンの比較関数を追加
+    private final static double EPSILON = 0.00001;
+    private static boolean equals(double a, double b) {
+        return a == b ? true: Math.abs(a - b) < EPSILON;
+    }
+
     private static List<Camera.Size> getValidPreviewSizes(List<Camera.Size> previewSizes, List<Camera.Size> pictureSizes) {
+        if (previewSizes == null) return null;
+        if (pictureSizes == null) return null;
+
         List<Camera.Size> validPreviewSizes = new ArrayList<Camera.Size>();
         for (Camera.Size previewSize : previewSizes) {
+            double previewRatio = (double)previewSize.width/previewSize.height;
 
             // Log.d( "DEBUG", String.format(".... OriginalPreviewSize: width=%5d, height=%5d, ratio=%5f", previewSize.width, previewSize.height, (double)previewSize.height/previewSize.width) );
            
             for (Camera.Size pictureSize : pictureSizes) {
-                double previewRatio = (double)previewSize.width/previewSize.height;
                 double pictureRatio = (double)pictureSize.width/pictureSize.height;
                 // 同じ比率のものが双方に存在する場合のみ、有効なPreviewSizeとする。
-                if( previewRatio == pictureRatio ) {
+                if (equals(previewRatio, pictureRatio)) {
 
                     // 特定の機種の特定の解像度は、比率があっていてもずれてしまうケースがあるため、ここで個別に弾く。
-                    // TODO:
+                    // TODO:タスク980
 
                     validPreviewSizes.add(previewSize);
                     break;
@@ -241,8 +250,9 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
             for (Camera.Size size : sizes) {
                 double ratio = (double) size.width / size.height;
                 // 比率の差が同じか小さい場合のみ処理を行う。
-                if (Math.abs(ratio - targetRatio) <= minRatio) {
-                    minRatio = Math.abs(ratio - targetRatio);
+                double diff = Math.abs(ratio - targetRatio);
+                if (diff < minRatio || equals(diff, minRatio)) {
+                    minRatio = diff;
                     // サイズがより近いものを選択する。
                     if (Math.abs(size.height - h) < minDiff) {
                         optimalSize = size;
@@ -258,6 +268,9 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
     }
 
     private static Camera.Size getOptimalPictureSize(Camera.Size previewSize, List<Camera.Size> pictureSizes) {
+        if (previewSize == null) return null;
+        if (pictureSizes == null) return null;
+       
         Camera.Size optimalSize = null;
         double previewRatio = (double)previewSize.width/previewSize.height;
         double minDiff = Double.MAX_VALUE;
@@ -267,7 +280,7 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
             // Log.d( "DEBUG", String.format(".... OriginalPictureSize: width=%5d, height=%5d, ratio=%5f", pictureSize.width, pictureSize.height, (double)pictureSize.height/pictureSize.width) );
 
             // 同じ比率のものしか認めない。
-            if( previewRatio == pictureRatio ) {
+            if (equals(previewRatio, pictureRatio)) {
                 // サイズがより近いものを選択する。
                 if (Math.abs(previewSize.height - pictureSize.height) < minDiff) {
                     optimalSize = pictureSize;
@@ -301,6 +314,8 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
             List<Camera.Size> validPreviewSizes = getValidPreviewSizes(supportedPreviewSizes,supportedPictureSizes);
             Camera.Size optimalPreviewSize = getOptimalPreviewSize(validPreviewSizes, size.x, size.y);
             Camera.Size optimalPictureSize = getOptimalPictureSize(optimalPreviewSize, supportedPictureSizes);
+            if (optimalPreviewSize == null || optimalPictureSize == null) return;
+
             Camera.Parameters parameters = camera.getParameters();
             parameters.setPreviewSize(optimalPreviewSize.width, optimalPreviewSize.height);
             parameters.setPictureSize(optimalPictureSize.width, optimalPictureSize.height);
