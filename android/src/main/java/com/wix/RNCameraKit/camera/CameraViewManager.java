@@ -192,8 +192,8 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
 
     // 簡易的な計算機イプシロンの比較関数を追加
     private final static double EPSILON = 0.00001;
-    private static boolean equals(double a, double b) {
-        return a == b ? true: Math.abs(a - b) < EPSILON;
+    private static boolean nearlyEquals(double a, double b) {
+        return a == b || Math.abs(a - b) < EPSILON;
     }
 
     private static List<Camera.Size> getValidPreviewSizes(List<Camera.Size> previewSizes, List<Camera.Size> pictureSizes) {
@@ -209,7 +209,7 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
             for (Camera.Size pictureSize : pictureSizes) {
                 double pictureRatio = (double)pictureSize.width/pictureSize.height;
                 // 同じ比率のものが双方に存在する場合のみ、有効なPreviewSizeとする。
-                if (equals(previewRatio, pictureRatio)) {
+                if (nearlyEquals(previewRatio, pictureRatio)) {
 
                     // 特定の機種の特定の解像度は、比率があっていてもずれてしまうケースがあるため、ここで個別に弾く。
                     // TODO:タスク980
@@ -251,7 +251,7 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
                 double ratio = (double) size.width / size.height;
                 // 比率の差が同じか小さい場合のみ処理を行う。
                 double diff = Math.abs(ratio - targetRatio);
-                if (diff < minRatio || equals(diff, minRatio)) {
+                if (diff < minRatio || nearlyEquals(diff, minRatio)) {
                     minRatio = diff;
                     // サイズがより近いものを選択する。
                     if (Math.abs(size.height - h) < minDiff) {
@@ -280,7 +280,7 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
             // Log.d( "DEBUG", String.format(".... OriginalPictureSize: width=%5d, height=%5d, ratio=%5f", pictureSize.width, pictureSize.height, (double)pictureSize.height/pictureSize.width) );
 
             // 同じ比率のものしか認めない。
-            if (equals(previewRatio, pictureRatio)) {
+            if (nearlyEquals(previewRatio, pictureRatio)) {
                 // サイズがより近いものを選択する。
                 if (Math.abs(previewSize.height - pictureSize.height) < minDiff) {
                     optimalSize = pictureSize;
