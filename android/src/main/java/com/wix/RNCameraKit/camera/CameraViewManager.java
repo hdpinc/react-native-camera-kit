@@ -35,6 +35,7 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
     private static OrientationEventListener orientationListener;
     private static int currentRotation = 0;
     private static AtomicBoolean cameraReleased = new AtomicBoolean(false);
+    private static Camera.Size optimalPreviewSize;
 
     public static Camera getCamera() {
         return camera;
@@ -136,6 +137,14 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
                     @Override
                     public void run() {
                         try {
+                            // プレビュー前にサーフェイスのサイズを設定してしまう
+                            int width = getDefaultDisplaySize().x;
+                            cameraViews.peek().setSurfaceLayout(
+                                optimalPreviewSize.height, // 短い方
+                                optimalPreviewSize.width, // 長い方
+                                width,
+                                width
+                            );
                             camera.stopPreview();
                             camera.setPreviewDisplay(cameraViews.peek().getHolder());
                             camera.startPreview();
@@ -299,11 +308,7 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
             Camera camera = CameraViewManager.getCamera();
             if (camera == null) return;
 
-            WindowManager wm = (WindowManager) reactContext.getSystemService(Context.WINDOW_SERVICE);
-            Display display = wm.getDefaultDisplay();
-            Point size = new Point();
-            // 取得されるサイズは、解像度と同じサイズの横幅と、ヘッダーとフッターを除いた縦幅となる。
-            display.getSize(size);
+            Point size = getDefaultDisplaySize();
 
             // Log.d( "DEBUG", String.format("**** DisplaySize: width=%5d, height=%5d, ratio=%5f", size.x, size.y, (double)size.x/size.y) );
 
@@ -312,7 +317,7 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
             List<Camera.Size> supportedPreviewSizes = camera.getParameters().getSupportedPreviewSizes();
             List<Camera.Size> supportedPictureSizes = camera.getParameters().getSupportedPictureSizes();
             List<Camera.Size> validPreviewSizes = getValidPreviewSizes(supportedPreviewSizes,supportedPictureSizes);
-            Camera.Size optimalPreviewSize = getOptimalPreviewSize(validPreviewSizes, size.x, size.y);
+            optimalPreviewSize = getOptimalPreviewSize(validPreviewSizes, size.x, size.y);
             Camera.Size optimalPictureSize = getOptimalPictureSize(optimalPreviewSize, supportedPictureSizes);
             if (optimalPreviewSize == null || optimalPictureSize == null) return;
 
@@ -326,5 +331,14 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
 
     public static void reconnect() {
         connectHolder();
+    }
+
+    public static Point getDefaultDisplaySize() {
+        WindowManager wm = (WindowManager) reactContext.getSystemService(Context.WINDOW_SERVICE);
+        Display display = wm.getDefaultDisplay();
+        Point size = new Point();
+        // 取得されるサイズは、解像度と同じサイズの横幅と、ヘッダーとフッターを除いた縦幅となる。
+        display.getSize(size);
+        return size;
     }
 }
