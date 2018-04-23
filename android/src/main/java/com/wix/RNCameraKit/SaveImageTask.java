@@ -237,6 +237,10 @@ public class SaveImageTask extends AsyncTask<byte[], Void, Void> {
 
     @Nullable
     private WritableMap saveTempImageFile(Bitmap image) {
+
+        // 現在は強制的に正方形にトリミングします。
+        image = trimSquareBitmap(image);
+
         File imageFile;
         FileOutputStream outputStream;
 
@@ -256,5 +260,19 @@ public class SaveImageTask extends AsyncTask<byte[], Void, Void> {
             imageFile = null;
         }
         return (imageFile != null) ? createImageInfo(Uri.fromFile(imageFile).toString(), imageFile.getAbsolutePath(), fileName, imageFile.length(), image.getWidth(), image.getHeight()) : null;
+    }
+
+    private Bitmap trimSquareBitmap(Bitmap image) {
+        try {
+            int width = CameraViewManager.getDefaultDisplaySize().x;
+            // 画面の解像度よりも小さな画像はトリミングしない。
+            if (image.getWidth() < width || image.getHeight() < width) return image;
+            int x = (image.getWidth() - width)/2;
+            int y = (image.getHeight() - width)/2;
+            image = Bitmap.createBitmap(image, x, y, width, width );
+        } catch (Exception e) {
+            Log.d(TAG, "Error trimming bitmap: " + e.getMessage());
+        }
+        return image;
     }
 }
