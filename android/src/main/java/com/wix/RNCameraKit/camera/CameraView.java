@@ -48,7 +48,7 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
         int actualPreviewWidth = getResources().getDisplayMetrics().widthPixels;
         int actualPreviewHeight = getResources().getDisplayMetrics().heightPixels;
         int height = Utils.convertDeviceHeightToSupportedAspectRatio(actualPreviewWidth, actualPreviewHeight);
-        surface.layout(0, 0, actualPreviewWidth, height);
+        setSurfaceLayout(actualPreviewWidth, height, right - left, bottom - top);
     }
 
     @Override
@@ -69,5 +69,15 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
 
     public SurfaceHolder getHolder() {
         return surface.getHolder();
+    }
+
+    public void setSurfaceLayout(int previewWidth, int previewHeight, int layoutWidth, int layoutHeight) {
+        // サーフェイスのレイアウトサイズはプレビューサイズ以下でないと余白が見えてしまう。
+        // 中央を表示するよう位置を調整する。
+        int left = -(previewWidth - layoutWidth)/2;
+        int top = -(previewHeight - layoutHeight)/2;
+        int right = left + previewWidth;
+        int bottom = top + previewHeight;
+        surface.layout(left, top, right, bottom);
     }
 }
