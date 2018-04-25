@@ -40,10 +40,16 @@ public class SaveImageTask extends AsyncTask<byte[], Void, Void> {
     private boolean saveToCameraRoll;
     private String bitmapUrl = null;
 
+    private final Camera.CameraInfo cameraInfo;
+    private final int cameraRotation;
+
     public SaveImageTask(Context context, Promise promise, boolean saveToCameraRoll) {
         this.context = context;
         this.promise = promise;
         this.saveToCameraRoll = saveToCameraRoll;
+
+        this.cameraInfo = CameraViewManager.getCameraInfo();
+        this.cameraRotation = CameraViewManager.getCurrentRotation();
     }
 
     public SaveImageTask(String bitmapUrl, Context context, Promise promise, boolean saveToCameraRoll) {
@@ -240,6 +246,12 @@ public class SaveImageTask extends AsyncTask<byte[], Void, Void> {
 
         // 現在は強制的に正方形にトリミングします。
         image = trimSquareBitmap(image);
+
+        // カメラの傾きと端末の向きから、ビューに表示されている向きと同じになる回転角度を求めます。
+        Matrix matrix = new Matrix();
+        matrix.postRotate((cameraInfo.orientation - cameraRotation + 360) % 360); // 角度が正の値になるよう計算します。
+        if (!matrix.isIdentity())
+            image = rotateImage(image, matrix);
 
         File imageFile;
         FileOutputStream outputStream;
