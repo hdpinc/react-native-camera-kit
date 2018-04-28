@@ -199,6 +199,10 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
         return info;
     }
 
+    public static int getCurrentRotation() {
+        return currentRotation;
+    }
+
     // 簡易的な計算機イプシロンの比較関数を追加
     private final static double EPSILON = 0.00001;
     private static boolean nearlyEquals(double a, double b) {
