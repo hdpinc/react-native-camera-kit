@@ -5,6 +5,8 @@ import android.app.Activity;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.PermissionChecker;
 
+import com.facebook.react.ReactActivity;
+import com.facebook.react.modules.core.PermissionListener;
 import com.facebook.react.bridge.Promise;
 import com.wix.RNCameraKit.SharedPrefs;
 
@@ -23,9 +25,27 @@ public class StoragePermission {
         requestAccessPromise = promise;
         permissionRequested(activity, Manifest.permission.READ_EXTERNAL_STORAGE);
         permissionRequested(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        ActivityCompat.requestPermissions(activity,
+
+        // このクラスに元々用意されているコールバック関数は、ここに来るまでセットされておらず、反応しません。
+        // そのため、コールバックを指定できるrequestPermissions()を使用して、許可を押した際に処理が次へ流れるようにしました。
+        if (activity instanceof ReactActivity) {
+            ReactActivity reactActivity = (ReactActivity)activity;
+            reactActivity.requestPermissions(
                 new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                STORAGE_PERMISSION_REQUEST_CODE);
+                STORAGE_PERMISSION_REQUEST_CODE, 
+                new PermissionListener() {
+                    @Override
+                    public boolean onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+                        if (isStoragePermission(requestCode, permissions)) {
+                            if (requestAccessPromise != null) {
+                                requestAccessPromise.resolve(grantResults[0] == PermissionChecker.PERMISSION_GRANTED && grantResults[1] == PermissionChecker.PERMISSION_GRANTED);
+                                requestAccessPromise = null;
+                            }
+                        }
+                        return false;
+                    }
+                });
+        }
     }
 
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
