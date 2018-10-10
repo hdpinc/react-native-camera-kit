@@ -17,7 +17,6 @@
 #import "RCTConvert.h"
 #endif
 
-
 #import "CKCamera.h"
 #import "CKCameraOverlayView.h"
 #import "CKGalleryManager.h"
@@ -85,7 +84,7 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 @property (nonatomic) AVCaptureMovieFileOutput *movieFileOutput;
 @property (nonatomic) AVCaptureStillImageOutput *stillImageOutput;
 @property (nonatomic, strong) AVCaptureMetadataOutput *metadataOutput;
-@property (nonatomic, strong) NSString *qrcodeStringValue;
+@property (nonatomic, strong) NSString *codeStringValue;
 
 
 // utilities
@@ -93,13 +92,23 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 @property (nonatomic, getter=isSessionRunning) BOOL sessionRunning;
 @property (nonatomic) UIBackgroundTaskIdentifier backgroundRecordingID;
 
+// frame for Scanner
+@property (nonatomic, strong) NSDictionary *scannerOptions;
+@property (nonatomic) BOOL showFrame;
+@property (nonatomic) UIView *greenScanner;
+
+@property (nonatomic) CGFloat frameOffset;
+@property (nonatomic) CGFloat heightFrame;
+@property (nonatomic, strong) UIColor *frameColor;
+@property (nonatomic) UIView * dataReadingFrame;
+
 // cameraOptions props
 @property (nonatomic) AVCaptureFlashMode flashMode;
 @property (nonatomic) CKCameraFocushMode focusMode;
 @property (nonatomic) CKCameraZoomMode zoomMode;
 @property (nonatomic, strong) NSString* ratioOverlayString;
 @property (nonatomic, strong) UIColor *ratioOverlayColor;
-@property (nonatomic, strong) RCTDirectEventBlock onReadQRCode;
+@property (nonatomic, strong) RCTDirectEventBlock onReadCode;
 
 @property (nonatomic) BOOL isAddedOberver;
 
@@ -146,6 +155,7 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     [super removeFromSuperview];
     
 }
+
 
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
@@ -287,11 +297,11 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
         else {
             self.setupResult = CKSetupResultSessionConfigurationFailed;
         }
-        if (self.onReadQRCode) {//TODO check if qrcode mode is on
+        if (self.onReadCode) {//TODO check if qrcode mode is on
             self.metadataOutput = [[AVCaptureMetadataOutput alloc] init];
             [self.session addOutput:self.metadataOutput];
             [self.metadataOutput setMetadataObjectsDelegate:self queue:dispatch_get_main_queue()];
-            [self.metadataOutput setMetadataObjectTypes:@[AVMetadataObjectTypeEAN13Code, AVMetadataObjectTypeQRCode]];
+            [self.metadataOutput setMetadataObjectTypes:[self.metadataOutput availableMetadataObjectTypes]];
         }
         
         
@@ -354,6 +364,11 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
                 [self addObservers];
                 [self.session startRunning];
                 self.sessionRunning = self.session.isRunning;
+                if (self.showFrame) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self addFrameForScanner];
+                    });
+                }
                 break;
             }
             case CKSetupResultCameraNotAuthorized:
@@ -805,6 +820,140 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     return CGSizeMake(previewSize.width*imageToPreviewWidthScale, previewSize.height*imageToPreviewHeightScale);
 }
 
+#pragma mark - Frame for Scanner Settings
+
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+    if (self.sessionRunning && self.dataReadingFrame) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self startAnimatingScanner:self.dataReadingFrame];
+        });
+    }
+}
+
+- (void)setScannerOptions:(NSDictionary *)scannerOptions {
+    if (scannerOptions[offsetForScannerFrame]) {
+        self.frameOffset = [scannerOptions[offsetForScannerFrame] floatValue];
+    }
+    if (scannerOptions[heightForScannerFrame]) {
+        self.heightFrame = [scannerOptions[heightForScannerFrame] floatValue];
+    }
+    if (scannerOptions[colorForFrame]) {
+        UIColor *acolor = [RCTConvert UIColor:scannerOptions[colorForFrame]];
+        self.frameColor = (acolor) ? acolor : [UIColor whiteColor];
+    }
+}
+
+- (void)addFrameForScanner {
+    CGFloat frameWidth = self.bounds.size.width - 2 * self.frameOffset;
+    if (!self.dataReadingFrame) {
+        self.dataReadingFrame = [[UIView alloc] initWithFrame:CGRectMake(0, 0, frameWidth, self.heightFrame)]; //
+        self.dataReadingFrame.center = self.center;
+        self.dataReadingFrame.backgroundColor = [UIColor clearColor];
+        [self createCustomFramesForView:self.dataReadingFrame];
+        [self addSubview:self.dataReadingFrame];
+        
+        
+        [self startAnimatingScanner:self.dataReadingFrame];
+        
+        [self addVisualEffects:self.dataReadingFrame.frame];
+        
+        CGRect visibleRect = [self.previewLayer metadataOutputRectOfInterestForRect:self.dataReadingFrame.frame];
+        self.metadataOutput.rectOfInterest = visibleRect;
+    }
+}
+
+- (void)createCustomFramesForView:(UIView *)frameView {
+    CGFloat cornerSize = 20.f;
+    CGFloat cornerWidth = 2.f;
+    for (int i = 0; i < 8; i++) {
+        CGFloat x = 0.0;
+        CGFloat y = 0.0;
+        CGFloat width = 0.0;
+        CGFloat height = 0.0;
+        switch (i) {
+            case 0:
+                x = 0; y = 0; width = cornerWidth; height = cornerSize;
+                break;
+            case 1:
+                x = 0; y = 0; width = cornerSize; height = cornerWidth;
+                break;
+            case 2:
+                x = CGRectGetWidth(frameView.bounds) - cornerSize; y = 0; width = cornerSize; height = cornerWidth;
+                break;
+            case 3:
+                x = CGRectGetWidth(frameView.bounds) - cornerWidth; y = 0; width = cornerWidth; height = cornerSize;
+                break;
+            case 4:
+                x = CGRectGetWidth(frameView.bounds) - cornerWidth;
+                y = CGRectGetHeight(frameView.bounds) - cornerSize; width = cornerWidth; height = cornerSize;
+                break;
+            case 5:
+                x = CGRectGetWidth(frameView.bounds) - cornerSize;
+                y = CGRectGetHeight(frameView.bounds) - cornerWidth; width = cornerSize; height = cornerWidth;
+                break;
+            case 6:
+                x = 0; y = CGRectGetHeight(frameView.bounds) - cornerWidth; width = cornerSize; height = cornerWidth;
+                break;
+            case 7:
+                x = 0; y = CGRectGetHeight(frameView.bounds) - cornerSize; width = cornerWidth; height = cornerSize;
+                break;
+        }
+        UIView * cornerView = [[UIView alloc] initWithFrame:CGRectMake(x, y, width, height)];
+        cornerView.backgroundColor = self.frameColor;
+        [frameView addSubview:cornerView];
+        
+    }
+}
+
+- (void)addVisualEffects:(CGRect)inputRect {
+    UIView *topView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.frame.size.width, inputRect.origin.y)];
+    topView.backgroundColor = [UIColor colorWithRed:0.0/255.0 green:0.0/255.0 blue:0.0/255.0 alpha:0.4];
+    [self addSubview:topView];
+    
+    UIView *leftSideView = [[UIView alloc] initWithFrame:CGRectMake(0, inputRect.origin.y, self.frameOffset, self.heightFrame)]; //paddingForScanner scannerHeight
+    leftSideView.backgroundColor = [UIColor colorWithRed:0.0/255.0 green:0.0/255.0 blue:0.0/255.0 alpha:0.4];
+    [self addSubview:leftSideView];
+    
+    UIView *rightSideView = [[UIView alloc] initWithFrame:CGRectMake(inputRect.size.width + self.frameOffset, inputRect.origin.y, self.frameOffset, self.heightFrame)];
+    rightSideView.backgroundColor = [UIColor colorWithRed:0.0/255.0 green:0.0/255.0 blue:0.0/255.0 alpha:0.4];
+    [self addSubview:rightSideView];
+    
+    UIView *bottomView = [[UIView alloc] initWithFrame:CGRectMake(0, inputRect.origin.y + self.heightFrame, self.frame.size.width,
+                                                                  self.frame.size.height - inputRect.origin.y - self.heightFrame)];
+    bottomView.backgroundColor = [UIColor colorWithRed:0.0/255.0 green:0.0/255.0 blue:0.0/255.0 alpha:0.4];
+    [self addSubview:bottomView];
+    
+}
+
+- (void)startAnimatingScanner:(UIView *)inputView {
+    if (!self.greenScanner) {
+        self.greenScanner = [[UIView alloc] initWithFrame:CGRectMake(2, 0, inputView.frame.size.width - 4, 2)];
+        self.greenScanner.backgroundColor = [UIColor whiteColor];
+    }
+    if (self.greenScanner.frame.origin.y != 0) {
+        [self.greenScanner setFrame:CGRectMake(2, 0, inputView.frame.size.width - 4, 2)];
+    }
+    [inputView addSubview:self.greenScanner];
+    [UIView animateWithDuration:3 delay:0 options:(UIViewAnimationOptionAutoreverse | UIViewAnimationOptionRepeat) animations:^{
+        CGFloat middleX = inputView.frame.size.width / 2;
+        self.greenScanner.center = CGPointMake(middleX, inputView.frame.size.height - 1);
+    } completion:^(BOOL finished) {}];
+}
+
+- (void)stopAnimatingScanner {
+    [self.greenScanner removeFromSuperview];
+}
+
+//Observer actions
+
+- (void)didEnterBackground:(NSNotification *)notification {
+    [self stopAnimatingScanner];
+}
+
+- (void)willEnterForeground:(NSNotification *)notification {
+    [self startAnimatingScanner:self.dataReadingFrame];
+}
 
 #pragma mark - observers
 
@@ -823,10 +972,21 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
         // and show a preview is paused message. See the documentation of AVCaptureSessionWasInterruptedNotification for other
         // interruption reasons.
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(sessionWasInterrupted:) name:AVCaptureSessionWasInterruptedNotification object:self.session];
+        //Observers for re-usage animation when app go to the background and back
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(didEnterBackground:) name:UIApplicationDidEnterBackgroundNotification
+                                                   object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(willEnterForeground:)
+                                                     name:UIApplicationWillEnterForegroundNotification
+                                                   object:nil];
+        
         self.isAddedOberver = YES;
     }
 }
 
+//UIApplicationDidEnterBackgroundNotification       NS_AVAILABLE_IOS(4_0);
+//UIKIT_EXTERN NSNotificationName const UIApplicationWillEnterForegroundNotification
 
 - (void)sessionWasInterrupted:(NSNotification *)notification
 {
@@ -925,17 +1085,40 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
     
     for(AVMetadataObject *metadataObject in metadataObjects)
     {
-        if ([metadataObject isKindOfClass:[AVMetadataMachineReadableCodeObject class]]) {
+        if ([metadataObject isKindOfClass:[AVMetadataMachineReadableCodeObject class]] && [self isSupportedBarCodeType:metadataObject.type]) {
             AVMetadataMachineReadableCodeObject *code = (AVMetadataMachineReadableCodeObject*)[self.previewLayer transformedMetadataObjectForMetadataObject:metadataObject];
             
-            if (self.onReadQRCode && code.stringValue && ![code.stringValue isEqualToString:self.qrcodeStringValue]) {
-                self.qrcodeStringValue = code.stringValue;
-                self.onReadQRCode(@{@"qrcodeStringValue": code.stringValue});
+            if (self.onReadCode && code.stringValue && ![code.stringValue isEqualToString:self.codeStringValue]) {
+                self.onReadCode(@{@"codeStringValue": code.stringValue});
+                [self stopAnimatingScanner];
             }
         }
     }
 }
 
+- (BOOL)isSupportedBarCodeType:(NSString *)currentType {
+    BOOL result = NO;
+    NSArray *supportedBarcodeTypes = @[AVMetadataObjectTypeUPCECode,AVMetadataObjectTypeCode39Code,AVMetadataObjectTypeCode39Mod43Code,
+                                       AVMetadataObjectTypeEAN13Code,AVMetadataObjectTypeEAN8Code, AVMetadataObjectTypeCode93Code,
+                                       AVMetadataObjectTypeCode128Code, AVMetadataObjectTypePDF417Code, AVMetadataObjectTypeQRCode,
+                                       AVMetadataObjectTypeAztecCode];
+    for (NSString* object in supportedBarcodeTypes) {
+        if ([currentType isEqualToString:object]) {
+            result = YES;
+        }
+    }
+    return result;
+}
+
+#pragma mark - String Constants For Scanner
+
+const NSString *offsetForScannerFrame     = @"offsetFrame";
+const NSString *heightForScannerFrame     = @"frameHeight";
+const NSString *colorForFrame             = @"colorForFrame";
+const NSString *isNeedMultipleScanBarcode = @"isNeedMultipleScanBarcode";
+
+
 
 
 @end
+
