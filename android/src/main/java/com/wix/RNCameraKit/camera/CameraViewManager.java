@@ -274,7 +274,6 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
     }
 
     private static Camera.Size getOptimalPreviewSize(List<Camera.Size> sizes, int w, int h) {
-        final double ASPECT_TOLERANCE = 0.15;
         if (sizes == null) return null;
         // 許容値を引き上げることで、より正しい画像サイズが得られるケースが生まれる。（Ex. Nexus 5X LG）
         final double ASPECT_TOLERANCE = 0.15;
