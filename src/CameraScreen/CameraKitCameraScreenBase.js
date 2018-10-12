@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Image,
   NativeModules,
-  Platform
+  Platform,
+  SafeAreaView,
+  processColor  
 } from 'react-native';
 import _ from 'lodash';
 import CameraKitCamera from './../CameraKitCamera';
@@ -19,6 +21,8 @@ const FLASH_MODE_AUTO = 'auto';
 const FLASH_MODE_ON = 'on';
 const FLASH_MODE_OFF = 'off';
 const OVERLAY_DEFAULT_COLOR = '#ffffff77';
+const OFFSET_FRAME = 30;
+const FRAME_HEIGHT = 200;
 
 export default class CameraScreenBase extends Component {
 
@@ -53,7 +57,8 @@ export default class CameraScreenBase extends Component {
       cameraOptions: {},
       ratioArrayPosition: -1,
       imageCaptured: undefined,
-      captured: false
+      captured: false,
+      scannerOptions : {}
     };
     this.onSetFlash = this.onSetFlash.bind(this);
     this.onSwitchCameraPressed = this.onSwitchCameraPressed.bind(this);
@@ -61,12 +66,14 @@ export default class CameraScreenBase extends Component {
 
   componentDidMount() {
     const cameraOptions = this.getCameraOptions();
+    const scannerOptions = this.getScannerOptions();
     let ratios = [];
     if (this.props.cameraRatioOverlay) {
       ratios = this.props.cameraRatioOverlay.ratios || [];
     }
     this.setState({
       cameraOptions,
+      scannerOptions,
       ratios: (ratios || []),
       ratioArrayPosition: ((ratios.length > 0) ? 0 : -1)
     });
@@ -94,6 +101,18 @@ export default class CameraScreenBase extends Component {
     return cameraOptions;
   }
 
+  getScannerOptions() {
+    const scannerOptions = this.props.scannerOptions || {};
+    scannerOptions.offsetFrame = this.props.offsetForScannerFrame || OFFSET_FRAME;
+    scannerOptions.frameHeight = this.props.heightForScannerFrame || FRAME_HEIGHT;
+    if (this.props.colorForScannerFrame) {
+      scannerOptions.colorForFrame = processColor(this.props.colorForScannerFrame);
+    } else {
+      scannerOptions.colorForFrame = processColor("white");
+    }
+    return scannerOptions;
+  }
+
   renderFlashButton() {
     return !this.isCaptureRetakeMode() &&
       <TouchableOpacity style={{ paddingHorizontal: 15 }} onPress={() => this.onSetFlash(FLASH_MODE_AUTO)}>
@@ -117,11 +136,11 @@ export default class CameraScreenBase extends Component {
   }
 
   renderTopButtons() {
-    return (
-      <View style={styles.topButtons}>
-        {this.renderFlashButton()}
-        {this.renderSwitchCameraButton()}
-      </View>
+    return !this.props.hideControls && (
+        <SafeAreaView style={styles.topButtons}>
+            {this.renderFlashButton()}
+            {this.renderSwitchCameraButton()}
+        </SafeAreaView>
     );
   }
 
@@ -130,15 +149,22 @@ export default class CameraScreenBase extends Component {
       <View style={styles.cameraContainer}>
         {
           this.isCaptureRetakeMode() ?
-          <Image
-            style={{flex: 1, justifyContent: 'flex-end'}}
-            source={{uri: this.state.imageCaptured.uri}}
-          /> :
-          <CameraKitCamera
-            ref={(cam) => this.camera = cam}
-            style={{flex: 1, justifyContent: 'flex-end'}}
-            cameraOptions={this.state.cameraOptions}
-          />
+            <Image
+              style={{ flex: 1, justifyContent: 'flex-end' }}
+              source={{ uri: this.state.imageCaptured.uri }}
+            /> :
+            <CameraKitCamera
+              ref={(cam) => this.camera = cam}
+              style={{ flex: 1, justifyContent: 'flex-end' }}
+              cameraOptions={this.state.cameraOptions}
+              showFrame={this.props.showFrame}
+              scanBarcode={this.props.scanBarcode}
+              laserColor={this.props.laserColor}
+              frameColor={this.props.frameColor}
+              surfaceColor={this.props.surfaceColor}
+              onReadCode = {this.props.onReadCode}
+              scannerOptions = {this.state.scannerOptions}
+            />
         }
       </View>
     );
@@ -176,7 +202,7 @@ export default class CameraScreenBase extends Component {
   }
 
   renderRatioStrip() {
-    if (this.state.ratios.length === 0) {
+    if (this.state.ratios.length === 0 || this.props.hideControls) {
       return null;
     }
     return (
@@ -195,7 +221,7 @@ export default class CameraScreenBase extends Component {
   }
 
   sendBottomButtonPressedAction(type, captureRetakeMode, image) {
-    if(this.props.onBottomButtonPressed) {
+    if (this.props.onBottomButtonPressed) {
       this.props.onBottomButtonPressed({ type, captureImages: this.state.captureImages, captureRetakeMode, image })
     }
   }
@@ -203,14 +229,14 @@ export default class CameraScreenBase extends Component {
   async onButtonPressed(type) {
     const captureRetakeMode = this.isCaptureRetakeMode();
     if (captureRetakeMode) {
-      if(type === 'left') {
+      if (type === 'left') {
         GalleryManager.deleteTempImage(this.state.imageCaptured.uri);
-        this.setState({imageCaptured: undefined});
+        this.setState({ imageCaptured: undefined });
       }
-      else if(type === 'right') {
+      else if (type === 'right') {
         const result = await GalleryManager.saveImageURLToCameraRoll(this.state.imageCaptured.uri);
-        const savedImage = {...this.state.imageCaptured, ...result}; // Note: Can't just return 'result' as on iOS not all data is returned by the native call (just the ID).
-        this.setState({imageCaptured: undefined, captureImages: _.concat(this.state.captureImages, savedImage)}, () => {
+        const savedImage = { ...this.state.imageCaptured, ...result }; // Note: Can't just return 'result' as on iOS not all data is returned by the native call (just the ID).
+        this.setState({ imageCaptured: undefined, captureImages: _.concat(this.state.captureImages, savedImage) }, () => {
           this.sendBottomButtonPressedAction(type, captureRetakeMode);
         });
       }
@@ -243,12 +269,12 @@ export default class CameraScreenBase extends Component {
   }
 
   renderBottomButtons() {
-    return (
-      <View style={[styles.bottomButtons, {backgroundColor: '#ffffff00'}]}>
+    return !this.props.hideControls && (
+      <SafeAreaView style={[styles.bottomButtons, { backgroundColor: '#ffffff00' }]}>
         {this.renderBottomButton('left')}
         {this.renderCaptureButton()}
         {this.renderBottomButton('right')}
-      </View>
+      </SafeAreaView>
     );
   }
 
