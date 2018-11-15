@@ -16,7 +16,6 @@ import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
 public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
     private SurfaceView surface;
-    private StatusBarBackgroundView statusBarBackground;
 
     private boolean showFrame;
     private Rect frameRect;
@@ -27,10 +26,8 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
     public CameraView(ThemedReactContext context) {
         super(context);
         surface = new SurfaceView(context);
-        statusBarBackground = new StatusBarBackgroundView(context, Color.BLACK);
         setBackgroundColor(Color.BLACK);
         addView(surface, MATCH_PARENT, MATCH_PARENT);
-        addView(statusBarBackground, MATCH_PARENT, MATCH_PARENT);
         surface.getHolder().addCallback(this);
     }
 
@@ -73,12 +70,6 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
         int right = left + previewWidth;
         int bottom = top + previewHeight;
         surface.layout(left, top, right, bottom);
-
-        // レイアウトの起点はカメラプレビューの左上なので、そこからナビゲーションバーとステータスバーの高さ分、上にずらしたものが、背景レイアウトの起点となります。
-        float density = getResources().getDisplayMetrics().density;
-        int navigationBarHeight = Math.round(50f * density); // 現在のナビゲーションバーのサイズは物理ピクセルで50固定。
-        int statusBarHeight = Math.round(25f * density); // mdpi（等倍）の時のステータスバーの高さは25pxまたは24pxとなりますが、この場合は大きい方が問題が起きにくいので、そちらを採用します。
-        statusBarBackground.layout(0, -statusBarHeight-navigationBarHeight, layoutWidth, -navigationBarHeight);
     }
 
     private final Runnable measureAndLayout = new Runnable() {
