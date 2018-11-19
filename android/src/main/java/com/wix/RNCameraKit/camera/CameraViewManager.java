@@ -170,14 +170,6 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
                     @Override
                     public void run() {
                         try {
-                            // プレビュー前にサーフェイスのサイズを設定してしまう
-                            int width = getDefaultDisplaySize().x;
-                            cameraViews.peek().setSurfaceLayout(
-                                optimalPreviewSize.height, // 短い方
-                                optimalPreviewSize.width, // 長い方
-                                width,
-                                width
-                            );
                             camera.stopPreview();
                             camera.setPreviewDisplay(cameraViews.peek().getHolder());
                             camera.startPreview();
