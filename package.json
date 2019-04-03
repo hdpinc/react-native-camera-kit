@@ -7,7 +7,7 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "version": "7.3.4",
+  "version": "7.3.6",
   "description": "Advanced native camera control with pre-defined aspect ratio, crop, etc",
   "author": "Ran Greenberg <rang@wix.com>",
   "nativePackage": true,
@@ -15,7 +15,7 @@
     "url": "https://github.com/wix/react-native-camera-kit/issues"
   },
   "scripts": {
-    "start": "node node_modules/react-native/local-cli/cli.js start",
+    "start": "watchman watch-del-all && node node_modules/react-native/local-cli/cli.js start",
     "xcode": "open example-ios/CameraKit.xcodeproj"
   },
   "main": "src/index.js",
