@@ -68,7 +68,7 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 #define CAMERA_OPTION_ON_READ_QR_CODE               @"onReadQRCode"
 #define TIMER_FOCUS_TIME_SECONDS            5
 
-@interface CKCamera () <AVCaptureFileOutputRecordingDelegate, AVCaptureMetadataOutputObjectsDelegate>
+@interface CKCamera () <AVCaptureMetadataOutputObjectsDelegate>
 
 
 @property (nonatomic, strong) AVCaptureVideoPreviewLayer *previewLayer;
@@ -121,7 +121,7 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 - (void)dealloc
 {
     [self removeObservers];
-    //NSLog(@"dealloc");
+//    NSLog(@"dealloc");
 }
 
 -(PHFetchOptions *)fetchOptions {
@@ -140,8 +140,8 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 - (void)removeReactSubview:(UIView *)subview
 {
     [subview removeFromSuperview];
+    [super removeReactSubview:subview];
 }
-
 
 - (void)removeFromSuperview
 {
@@ -155,7 +155,6 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     [super removeFromSuperview];
     
 }
-
 
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
@@ -175,7 +174,6 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
         [self.layer addSublayer:self.previewLayer];
         self.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
 #endif
-        
         UIView *focusView = [[UIView alloc] initWithFrame:CGRectZero];
         focusView.backgroundColor = [UIColor clearColor];
         focusView.layer.borderColor = [UIColor yellowColor].CGColor;
@@ -193,7 +191,6 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     
     return self;
 }
-
 
 -(void)setCameraOptions:(NSDictionary *)cameraOptions {
     _cameraOptions = cameraOptions;
@@ -246,7 +243,6 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     //    }
 }
 
-
 -(void)setupCaptionSession {
     // Setup the capture session.
     // In general it is not safe to mutate an AVCaptureSession or any of its inputs, outputs, or connections from multiple threads at the same time.
@@ -297,15 +293,17 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
         else {
             self.setupResult = CKSetupResultSessionConfigurationFailed;
         }
-        if (self.onReadCode) {//TODO check if qrcode mode is on
-            self.metadataOutput = [[AVCaptureMetadataOutput alloc] init];
+        
+        AVCaptureMetadataOutput * output = [[AVCaptureMetadataOutput alloc] init];
+        if ([self.session canAddOutput:output]) {
+            self.metadataOutput = output;
             [self.session addOutput:self.metadataOutput];
             [self.metadataOutput setMetadataObjectsDelegate:self queue:dispatch_get_main_queue()];
             [self.metadataOutput setMetadataObjectTypes:[self.metadataOutput availableMetadataObjectTypes]];
         }
         
-        
         [self.session commitConfiguration];
+
     } );
 }
 
@@ -526,27 +524,25 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
                 capturedImage = [UIImage imageWithCGImage:imageRef scale:capturedImage.scale orientation:UIImageOrientationUp];
                 imageData = UIImageJPEGRepresentation(capturedImage, 0.85f);
                 
-                [PHPhotoLibrary requestAuthorization:^( PHAuthorizationStatus status ) {
-                    if ( status == PHAuthorizationStatusAuthorized ) {
-                        
-                        NSMutableDictionary *imageInfoDict = [[NSMutableDictionary alloc] init];
-                        
-                        NSURL *temporaryFileURL = [CKCamera saveToTmpFolder:imageData];
-                        if (temporaryFileURL) {
-                            imageInfoDict[@"uri"] = temporaryFileURL.description;
-                            imageInfoDict[@"name"] = temporaryFileURL.lastPathComponent;
-                        }
-                        imageInfoDict[@"size"] = [NSNumber numberWithInteger:imageData.length];
-                        
-                        if (capturedImage && [capturedImage isKindOfClass:[UIImage class]]) {
-                            imageInfoDict[@"width"] = [NSNumber numberWithDouble:capturedImage.size.width];
-                            imageInfoDict[@"height"] = [NSNumber numberWithDouble:capturedImage.size.height];
-                        }
-                        
-                        
-                        if (shouldSaveToCameraRoll) {
-                            NSData *compressedImageData = UIImageJPEGRepresentation(capturedImage, 1.0f);
+                NSMutableDictionary *imageInfoDict = [[NSMutableDictionary alloc] init];
+                
+                NSURL *temporaryFileURL = [CKCamera saveToTmpFolder:imageData];
+                if (temporaryFileURL) {
+                    imageInfoDict[@"uri"] = temporaryFileURL.description;
+                    imageInfoDict[@"name"] = temporaryFileURL.lastPathComponent;
+                }
+                imageInfoDict[@"size"] = [NSNumber numberWithInteger:imageData.length];
+                
+                if (capturedImage && [capturedImage isKindOfClass:[UIImage class]]) {
+                    imageInfoDict[@"width"] = [NSNumber numberWithDouble:capturedImage.size.width];
+                    imageInfoDict[@"height"] = [NSNumber numberWithDouble:capturedImage.size.height];
+                }
+                
+                if (shouldSaveToCameraRoll) {
+                    [PHPhotoLibrary requestAuthorization:^( PHAuthorizationStatus status ) {
+                        if ( status == PHAuthorizationStatusAuthorized ) {
                             
+                            NSData *compressedImageData = UIImageJPEGRepresentation(capturedImage, 1.0f);
                             [CKGalleryManager saveImageToCameraRoll:compressedImageData temporaryFileURL:temporaryFileURL block:^(BOOL success) {
                                 if (success) {
                                     NSString *localIdentifier = [CKGalleryManager getImageLocalIdentifierForFetchOptions:self.fetchOptions];
@@ -562,15 +558,13 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
                                     //NSLog( @"Could not save to camera roll");
                                 }
                             }];
-                        } else if (block) {
-                            block(imageInfoDict);
                         }
-                    }
-                }];
-                
+                    }];
+                } else if (block) {
+                    block(imageInfoDict);
+                }
                 CGImageRelease(imageRef);
-            }
-            else {
+            } else {
                 //NSLog( @"Could not capture still image: %@", error );
             }
         }];
@@ -810,9 +804,6 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 }
 
 +(CGSize)cropImageToPreviewSize:(UIImage*)image size:(CGSize)previewSize {
-    
-    CGRect ans = CGRectZero;
-    CGSize centerSize = CGSizeZero;
     
     float imageToPreviewWidthScale = image.size.width/previewSize.width;
     float imageToPreviewHeightScale = image.size.width/previewSize.width;
@@ -1086,8 +1077,8 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
     for(AVMetadataObject *metadataObject in metadataObjects)
     {
         if ([metadataObject isKindOfClass:[AVMetadataMachineReadableCodeObject class]] && [self isSupportedBarCodeType:metadataObject.type]) {
-            AVMetadataMachineReadableCodeObject *code = (AVMetadataMachineReadableCodeObject*)[self.previewLayer transformedMetadataObjectForMetadataObject:metadataObject];
             
+            AVMetadataMachineReadableCodeObject *code = (AVMetadataMachineReadableCodeObject*)[self.previewLayer transformedMetadataObjectForMetadataObject:metadataObject];
             if (self.onReadCode && code.stringValue && ![code.stringValue isEqualToString:self.codeStringValue]) {
                 self.onReadCode(@{@"codeStringValue": code.stringValue});
                 [self stopAnimatingScanner];
@@ -1116,8 +1107,6 @@ const NSString *offsetForScannerFrame     = @"offsetFrame";
 const NSString *heightForScannerFrame     = @"frameHeight";
 const NSString *colorForFrame             = @"colorForFrame";
 const NSString *isNeedMultipleScanBarcode = @"isNeedMultipleScanBarcode";
-
-
 
 
 @end
