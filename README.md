@@ -66,6 +66,9 @@ And in the package list in the same file (e.g. `getPackages`) add:
 ### CameraKitCamera - Camera component 
 
 ```js
+import { CameraKitCamera } from 'react-native-camera-kit';
+```
+```jsx
 <CameraKitCamera
   ref={cam => this.camera = cam}
   style={{
@@ -73,26 +76,35 @@ And in the package list in the same file (e.g. `getPackages`) add:
     backgroundColor: 'white'
   }}
   cameraOptions={{
-    flashMode: 'auto',             // on/off/auto(default)
-    focusMode: 'on',               // off/on(default)
-    zoomMode: 'on',                // off/on(default)
-    ratioOverlay:'1:1',            // optional, ratio overlay on the camera and crop the image seamlessly
-    ratioOverlayColor: '#00000077' // optional
+    flashMode: 'auto',                // on/off/auto(default)
+    focusMode: 'on',                  // off/on(default)
+    zoomMode: 'on',                   // off/on(default)
+    ratioOverlay:'1:1',               // optional
+    ratioOverlayColor: '#00000077'    // optional
   }}
-  onReadQRCode={(event) => console.log(event.nativeEvent.qrcodeStringValue)} // optional
-  
+  onReadCode={event =>                // optional
+    console.log(event.nativeEvent.codeStringValue)
+  }
+  resetFocusTimeout={0}               // optional
+  resetFocusWhenMotionDetected={true} // optional
 />
 ```
 
-### CameraKitCamera cameraOptions
+Prop | Type | Description
+-------- | ----- | ------------
+`resetFocusTimeout`          | Number  | iOS only. Dismiss tap to focus after this many milliseconds. Default `0` (disabled). Example: `5000` is 5 seconds.
+`resetFocusWhenMotionDetected` | Boolean | iOS only. Dismiss tap to focus when focus area content changes. Native iOS feature, see documentation: https://developer.apple.com/documentation/avfoundation/avcapturedevice/1624644-subjectareachangemonitoringenabl?language=objc). Default `true`.
+`cameraOptions`                      | Object  | See `cameraOptions` below
+
+### cameraOptions
 
 Attribute         | Values                 | Description
 ----------------- | ---------------------- | -----------
-`flashMode`         |`'on'`/`'off'`/`'auto'` | camera flash mode (default is `auto`)
-`focusMode`         | `'on'`/`'off'`         | camera focus mode (default is `on`)
-`zoomMode`          | `'on'`/`'off'`         | camera zoom mode
-`ratioOverlay`      | `['int':'int', ...]`   | overlay on top of the camera view (crop the image to the selected size) Example: `['16:9', '1:1', '3:4']`
-`ratioOverlayColor` |  Color                 | any color with alpha (default is ```'#ffffff77'```)
+`flashMode`         |`'on'`/`'off'`/`'auto'` | Camera flash mode (default is `auto`)
+`focusMode`         | `'on'`/`'off'`         | Camera focus mode (default is `on`)
+`zoomMode`          | `'on'`/`'off'`         | Camera zoom mode
+`ratioOverlay`      | `['int':'int', ...]`   | Show a guiding overlay in the camera preview for the selected ratio. Does not crop image as of v9.0. Example: `['16:9', '1:1', '3:4']`
+`ratioOverlayColor` |  Color                 | Any color with alpha (default is ```'#ffffff77'```)
 
 ### CameraKitCamera API
 
@@ -128,6 +140,8 @@ Capture image (`shouldSaveToCameraRoll: boolean`)
 const image = await this.camera.capture(true);
 ```
 
+*<span style="color: red">**Note:**</span> This only work on real devices. It will hang indefinitly on simulators.*
+
 #### setFlashMode - must have the wanted camera capture reference
 
 Set flash mode (`auto`/`on`/`off`)
@@ -146,7 +160,7 @@ const success = await this.camera.setTorchMode(newTorchMode);
 
 #### changeCamera - must have the wanted camera capture reference
 
-Change to fornt/rear camera
+Change to front/rear camera
 
 ```js
 const success = await this.camera.changeCamera();
@@ -160,6 +174,8 @@ Native Gallery View (based on `UICollectionView`(iOS) and ` RecyclerView` (Andro
 ![](img/camerakitgalleryview.png)
 
 ```js
+import { CameraKitGalleryView } from 'react-native-camera-kit';
+
 <CameraKitGalleryView
   ref={gallery => this.gallery = gallery}
   style={{flex: 1, marginTop: 20}}
@@ -232,6 +248,8 @@ Attribute | Values
 
 ## QR Code 
 ```js
+import { CameraKitCameraScreen } from 'react-native-camera-kit';
+
 <CameraKitCameraScreen
     actions={{ rightButtonText: 'Done', leftButtonText: 'Cancel' }}
     onBottomButtonPressed={(event) => this.onBottomButtonPressed(event)}
@@ -239,7 +257,7 @@ Attribute | Values
     laserColor={"blue"}
     frameColor={"yellow"}
 
-    onReadQRCode={((event) => Alert.alert("Qr code found"))} //optional
+    onReadCode={((event) => Alert.alert("Qr code found"))} //optional
     hideControls={false}           //(default false) optional, hide buttons and additional controls on top and bottom of screen
     showFrame={true}   //(default false) optional, show frame with transparent layer (qr code or barcode will be read on this area ONLY), start animation for scanner,that stoped when find any code. Frame always at center of the screen
     offsetForScannerFrame = {10}   //(default 30) optional, offset from left and right side of the screen
