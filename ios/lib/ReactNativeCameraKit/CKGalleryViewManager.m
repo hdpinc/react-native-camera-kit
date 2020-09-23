@@ -29,7 +29,7 @@
 typedef void (^CompletionBlock)(BOOL success);
 
 
-@interface CKGalleryView : UIView <UICollectionViewDelegateFlowLayout, UICollectionViewDataSource, CKGalleryCollectionViewCellDelegate>
+@interface CKGalleryView : UIView <UICollectionViewDelegateFlowLayout, UICollectionViewDataSource, CKGalleryCollectionViewCellDelegate,PHPhotoLibraryChangeObserver,PHPhotoLibraryChangeObserver>
 
 //props
 @property (nonatomic, strong) NSString *albumName;
@@ -91,6 +91,7 @@ static NSString * const CustomCellReuseIdentifier = @"CustomCell";
 
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
+    [PHPhotoLibrary.sharedPhotoLibrary registerChangeObserver:self];
     
     if (self) {
         
@@ -712,6 +713,12 @@ static NSString * const CustomCellReuseIdentifier = @"CustomCell";
 -(BOOL)shouldShowPressIndicator:(CKGalleryCollectionViewCell*)cell {
     self.lastPressedCell = cell;
     return !self.collectionViewIsScrolling;
+}
+
+- (void)photoLibraryDidChange:(PHChange *)changeInstance
+{
+
+    [self refreshGalleryView:self.selectedImages];
 }
 
 @end
