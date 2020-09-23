@@ -29,7 +29,7 @@
 typedef void (^CompletionBlock)(BOOL success);
 
 
-@interface CKGalleryView : UIView <UICollectionViewDelegateFlowLayout, UICollectionViewDataSource, CKGalleryCollectionViewCellDelegate>
+@interface CKGalleryView : UIView <UICollectionViewDelegateFlowLayout, UICollectionViewDataSource, CKGalleryCollectionViewCellDelegate,PHPhotoLibraryChangeObserver,PHPhotoLibraryChangeObserver>
 
 //props
 @property (nonatomic, strong) NSString *albumName;
@@ -41,6 +41,7 @@ typedef void (^CompletionBlock)(BOOL success);
 @property (nonatomic, strong) NSString *imageQualityOnTap;
 @property (nonatomic, copy) RCTDirectEventBlock onTapImage;
 @property (nonatomic, copy) RCTDirectEventBlock onRemoteDownloadChanged;
+@property (nonatomic, copy) RCTDirectEventBlock onChangeLibrary;
 
 
 @property (nonatomic, strong) UICollectionView *collectionView;
@@ -91,6 +92,7 @@ static NSString * const CustomCellReuseIdentifier = @"CustomCell";
 
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
+    [PHPhotoLibrary.sharedPhotoLibrary registerChangeObserver:self];
     
     if (self) {
         
@@ -714,6 +716,13 @@ static NSString * const CustomCellReuseIdentifier = @"CustomCell";
     return !self.collectionViewIsScrolling;
 }
 
+- (void)photoLibraryDidChange:(PHChange *)changeInstance {
+     if (self.onChangeLibrary) {
+         [self refreshGalleryView: self.selectedImages];
+         self.onChangeLibrary(@{});
+     }
+}
+
 @end
 
 @interface CKGalleryViewManager ()
@@ -762,6 +771,7 @@ RCT_EXPORT_VIEW_PROPERTY(remoteDownloadIndicatorColor, UIColor);
 RCT_EXPORT_VIEW_PROPERTY(remoteDownloadIndicatorType, NSString);
 RCT_EXPORT_VIEW_PROPERTY(onRemoteDownloadChanged, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(iCloudDownloadSimulateTime, NSNumber);
+RCT_EXPORT_VIEW_PROPERTY(onChangeLibrary, RCTDirectEventBlock);
 
 
 
