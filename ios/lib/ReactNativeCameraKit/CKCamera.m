@@ -1150,7 +1150,10 @@ didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
             
             AVMetadataMachineReadableCodeObject *code = (AVMetadataMachineReadableCodeObject*)[self.previewLayer transformedMetadataObjectForMetadataObject:metadataObject];
             if (self.onReadCode && code.stringValue && ![code.stringValue isEqualToString:self.codeStringValue]) {
-                self.onReadCode(@{@"codeStringValue": code.stringValue});
+                self.onReadCode(@{@"codeStringValue": code.stringValue,
+                                  @"count":@(arc4random_uniform(2) + 1),
+                                  @"total":@2
+                                });
                 [self stopAnimatingScanner];
             }
         }

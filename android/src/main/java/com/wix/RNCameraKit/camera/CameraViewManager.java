@@ -38,6 +38,8 @@ import javax.annotation.Nullable;
 
 import static com.wix.RNCameraKit.camera.Orientation.getSupportedRotation;
 
+import java.util.Random;
+
 @SuppressWarnings("MagicNumber deprecation")
 // We're still using Camera API 1, everything is deprecated
 public class CameraViewManager extends SimpleViewManager<CameraView> {
@@ -390,6 +392,8 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
             public void handleResult(Result result) {
                 WritableMap event = Arguments.createMap();
                 event.putString("codeStringValue", result.getText());
+                event.putInt("total", 2);
+                event.putInt("count", new Random().nextInt(2) + 1);
                 if (!cameraViews.empty())
                     reactContext.getJSModule(RCTEventEmitter.class).receiveEvent(cameraViews.peek().getId(), "onReadCode", event);
             }
