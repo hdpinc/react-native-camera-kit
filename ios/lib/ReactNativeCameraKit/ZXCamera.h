@@ -6,6 +6,8 @@
 #import "RCTConvert.h"
 #endif
 
+#import <ZXingObjC/ZXingObjC.h>
+
 @interface ZXCamera : UIView
 
 @end

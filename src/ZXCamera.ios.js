@@ -7,8 +7,9 @@ const NativeCamera = requireNativeComponent('ZXCamera', null);
 
 export default class ZXCamera extends React.Component {
   render() {
+
     return (
-      <NativeCamera />
+      <NativeCamera {...this.props} />
     );
   }
 }
