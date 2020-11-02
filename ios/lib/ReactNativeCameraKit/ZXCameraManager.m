@@ -18,4 +18,6 @@ RCT_EXPORT_MODULE()
     return self.camera;
 }
 
+RCT_EXPORT_VIEW_PROPERTY(onReadCode, RCTDirectEventBlock)
+
 @end

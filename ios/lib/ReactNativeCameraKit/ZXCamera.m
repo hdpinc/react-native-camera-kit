@@ -8,17 +8,17 @@
 #endif
 
 #import "ZXCamera.h"
+#import <AudioToolbox/AudioToolbox.h>
+
 
 @interface ZXCamera ()
 @property (nonatomic, strong) ZXCapture *capture;
 @property (nonatomic) BOOL scanning;
 @property (nonatomic) UIView *scanRectView;
-
+@property (nonatomic, strong) RCTDirectEventBlock onReadCode;
 @end
 
-@implementation ZXCamera {
-    CGAffineTransform _captureSizeTransform;
-}
+@implementation ZXCamera
 
 - (void)dealloc
 {
@@ -66,7 +66,7 @@
     self.scanRectView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, frameWidth, frameHeight)];
     self.scanRectView.center = self.center;
     self.scanRectView.layer.borderColor = [UIColor redColor].CGColor;
-    self.scanRectView.layer.borderWidth = 1.0f;
+    self.scanRectView.layer.borderWidth = 3.0f;
     [self addSubview:self.scanRectView];
     
     [self applyOrientation];
@@ -137,14 +137,9 @@
         scaleVideoX = self.capture.layer.frame.size.width / videoSizeY;
         scaleVideoY = self.capture.layer.frame.size.height / videoSizeX;
     }
-    
-    _captureSizeTransform = CGAffineTransformMakeScale(1.0/scaleVideoX, 1.0/scaleVideoY);
+    CGAffineTransform _captureSizeTransform = CGAffineTransformMakeScale(1.0/scaleVideoX, 1.0/scaleVideoY);
     self.capture.scanRect = CGRectApplyAffineTransform(transformedVideoRect, _captureSizeTransform);
-    NSLog(NSStringFromCGRect(self.capture.scanRect));
-    UIView *scanRectView = [[UIView alloc] initWithFrame:self.capture.scanRect];
-    self.scanRectView.layer.borderColor = [UIColor blueColor].CGColor;
-    self.scanRectView.layer.borderWidth = 3.0f;
-    [self addSubview: scanRectView];
+    [self.capture start];
 }
 
 #pragma mark - ZXCaptureDelegate Methods
@@ -163,21 +158,26 @@
     NSMutableDictionary *metaData = result.resultMetadata;
     NSNumber *sequenceValue = [metaData objectForKey:@(kResultMetadataTypeStructuredAppendSequence)];
     NSNumber *parity = [metaData objectForKey:@(kResultMetadataTypeStructuredAppendParity)];
-    
     NSString *bit = [self convertBinary:[sequenceValue intValue]];
     NSString *padding = [@"" stringByPaddingToLength:8 - (bit.length) withString:@"0" startingAtIndex:0];
     NSString *sequence =  [ padding stringByAppendingString:bit];
     // 読み取ったQRコードの番号 4bit + トータルのQRコード数 4bit
-    NSNumber *count = [self convertDecimal:[sequence substringToIndex:4]];
-    NSNumber *total = [self convertDecimal:[sequence substringWithRange:NSMakeRange(4,4)]];
+    int count = [self convertDecimal:[sequence substringToIndex:4]];
+    int total = [self convertDecimal:[sequence substringWithRange:NSMakeRange(4,4)]];
     
-    NSLog(@"%@", count);
-    NSLog(@"%@", total);
+    // ０からカウントされるのでRNには+1した状態でコールバックする
+    NSDictionary *resultDictionary = @{@"codeStringValue":result.text,
+                                       @"parity":parity,
+                                       @"total":[NSNumber numberWithInt: total + 1],
+                                       @"count":[NSNumber numberWithInt: count + 1]
+                                       };
+    if (self.onReadCode){
+        self.onReadCode(resultDictionary);
+    }
+    
     self.scanning = YES;
     [self.capture start];
-    
 }
-
 
 - (NSString *) convertBinary:(int) decimal {
     NSString *binary = @"";
@@ -189,13 +189,13 @@
     return binary;
 }
 
-- (NSNumber *) convertDecimal:(NSString *) binary {
+- (int) convertDecimal:(NSString *) binary {
     int decimal = 0;
     for (int i=0; i<binary.length; i++) {
         int tmp = [[binary substringWithRange:NSMakeRange(i,1)] intValue] * pow(2,binary.length - i - 1 );
         decimal = decimal + tmp;
     }
-    return  [NSNumber numberWithInt:decimal];;
+    return decimal;
 }
 
 @end
