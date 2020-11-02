@@ -8,6 +8,6 @@
 
 #import <ZXingObjC/ZXingObjC.h>
 
-@interface ZXCamera : UIView
+@interface ZXCamera : UIView <ZXCaptureDelegate>
 
 @end

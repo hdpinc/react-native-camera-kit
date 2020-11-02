@@ -9,9 +9,7 @@
 
 #import "ZXCamera.h"
 
-
-
-@interface ZXCamera () <ZXCaptureDelegate>
+@interface ZXCamera ()
 @property (nonatomic, strong) ZXCapture *capture;
 @property (nonatomic) BOOL scanning;
 @property (nonatomic) UIView *scanRectView;
@@ -42,8 +40,10 @@
     self = [super initWithFrame:frame];
     
     self.capture = [[ZXCapture alloc] init];
-    self.capture.sessionPreset = AVCaptureSessionPresetHigh;
+    self.capture.sessionPreset = AVCaptureSessionPreset1920x1080;
     self.capture.camera = self.capture.back;
+    
+    
     self.capture.delegate = self;
     [self.layer addSublayer:self.capture.layer];
     
@@ -59,16 +59,18 @@
 #endif
     
     self.frame = frame;
-    self.capture.layer.frame = frame;
+    self.capture.layer.frame = self.bounds;
     
     CGFloat frameWidth = self.frame.size.width - 2 * 30;
     CGFloat frameHeight = frameWidth;
     self.scanRectView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, frameWidth, frameHeight)];
     self.scanRectView.center = self.center;
-    self.scanRectView.backgroundColor = [UIColor redColor];
+    self.scanRectView.layer.borderColor = [UIColor redColor].CGColor;
+    self.scanRectView.layer.borderWidth = 1.0f;
     [self addSubview:self.scanRectView];
     
     [self applyOrientation];
+    
 }
 
 #pragma mark - Private
@@ -138,6 +140,11 @@
     
     _captureSizeTransform = CGAffineTransformMakeScale(1.0/scaleVideoX, 1.0/scaleVideoY);
     self.capture.scanRect = CGRectApplyAffineTransform(transformedVideoRect, _captureSizeTransform);
+    NSLog(NSStringFromCGRect(self.capture.scanRect));
+    UIView *scanRectView = [[UIView alloc] initWithFrame:self.capture.scanRect];
+    self.scanRectView.layer.borderColor = [UIColor blueColor].CGColor;
+    self.scanRectView.layer.borderWidth = 3.0f;
+    [self addSubview: scanRectView];
 }
 
 #pragma mark - ZXCaptureDelegate Methods
@@ -146,34 +153,49 @@
     self.scanning = YES;
 }
 
-- (void)captureResult:(ZXCapture *)capture result:(ZXResult *)result {
+- (void)captureResult:(ZXCapture *)capture result:(ZXResult *)result{
     if (!self.scanning) return;
-    if (!result) return;
+    if(result.barcodeFormat != kBarcodeFormatQRCode) return;
     
-    // We got a result.
     [self.capture stop];
     self.scanning = NO;
     
-    // Display found barcode location
-    CGAffineTransform inverse = CGAffineTransformInvert(_captureSizeTransform);
-    NSMutableArray *points = [[NSMutableArray alloc] init];
-    NSString *location = @"";
-    for (ZXResultPoint *resultPoint in result.resultPoints) {
-        CGPoint cgPoint = CGPointMake(resultPoint.x, resultPoint.y);
-        CGPoint transformedPoint = CGPointApplyAffineTransform(cgPoint, inverse);
-        transformedPoint = [self convertPoint:transformedPoint toView:self];
-        NSValue* windowPointValue = [NSValue valueWithCGPoint:transformedPoint];
-        location = [NSString stringWithFormat:@"%@ (%f, %f)", location, transformedPoint.x, transformedPoint.y];
-        [points addObject:windowPointValue];
+    NSMutableDictionary *metaData = result.resultMetadata;
+    NSNumber *sequenceValue = [metaData objectForKey:@(kResultMetadataTypeStructuredAppendSequence)];
+    NSNumber *parity = [metaData objectForKey:@(kResultMetadataTypeStructuredAppendParity)];
+    
+    NSString *bit = [self convertBinary:[sequenceValue intValue]];
+    NSString *padding = [@"" stringByPaddingToLength:8 - (bit.length) withString:@"0" startingAtIndex:0];
+    NSString *sequence =  [ padding stringByAppendingString:bit];
+    // 読み取ったQRコードの番号 4bit + トータルのQRコード数 4bit
+    NSNumber *count = [self convertDecimal:[sequence substringToIndex:4]];
+    NSNumber *total = [self convertDecimal:[sequence substringWithRange:NSMakeRange(4,4)]];
+    
+    NSLog(@"%@", count);
+    NSLog(@"%@", total);
+    self.scanning = YES;
+    [self.capture start];
+    
+}
+
+
+- (NSString *) convertBinary:(int) decimal {
+    NSString *binary = @"";
+    while (decimal > 0) {
+        NSString * count = [NSString stringWithFormat:@"%d", decimal % 2];
+        binary =  [ count stringByAppendingString:binary];
+        decimal = decimal / 2;
     }
-    
-    // Vibrate
-    AudioServicesPlaySystemSound(kSystemSoundID_Vibrate);
-    
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
-        self.scanning = YES;
-        [self.capture start];
-    });
+    return binary;
+}
+
+- (NSNumber *) convertDecimal:(NSString *) binary {
+    int decimal = 0;
+    for (int i=0; i<binary.length; i++) {
+        int tmp = [[binary substringWithRange:NSMakeRange(i,1)] intValue] * pow(2,binary.length - i - 1 );
+        decimal = decimal + tmp;
+    }
+    return  [NSNumber numberWithInt:decimal];;
 }
 
 @end
