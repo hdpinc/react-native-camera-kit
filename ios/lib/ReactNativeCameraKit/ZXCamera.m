@@ -8,8 +8,6 @@
 #endif
 
 #import "ZXCamera.h"
-#import <AudioToolbox/AudioToolbox.h>
-
 
 @interface ZXCamera ()
 @property (nonatomic, strong) ZXCapture *capture;
@@ -157,7 +155,10 @@
     
     NSMutableDictionary *metaData = result.resultMetadata;
     NSNumber *sequenceValue = [metaData objectForKey:@(kResultMetadataTypeStructuredAppendSequence)];
+    if(sequenceValue == nil) sequenceValue = [NSNumber numberWithInt:0];
     NSNumber *parity = [metaData objectForKey:@(kResultMetadataTypeStructuredAppendParity)];
+    if(parity == nil) parity = [NSNumber numberWithInt:0];
+    
     NSString *bit = [self convertBinary:[sequenceValue intValue]];
     NSString *padding = [@"" stringByPaddingToLength:8 - (bit.length) withString:@"0" startingAtIndex:0];
     NSString *sequence =  [ padding stringByAppendingString:bit];
