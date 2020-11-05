@@ -106,5 +106,12 @@ RCT_EXPORT_METHOD(setTorchMode:(CKCameraTorchMode)torchMode
     }];
 }
 
+RCT_EXPORT_METHOD(startScanning) {
+    [self.camera set:YES];
+}
+
+RCT_EXPORT_METHOD(stopScanning) {
+    [self.camera set:NO];
+}
 
 @end

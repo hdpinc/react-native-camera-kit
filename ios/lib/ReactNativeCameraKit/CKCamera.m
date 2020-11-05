@@ -33,10 +33,10 @@ typedef NS_ENUM( NSInteger, CKSetupResult ) {
 @implementation RCTConvert(CKCameraTorchMode)
 
 RCT_ENUM_CONVERTER(CKCameraTorchMode, (@{
-                                         @"auto": @(AVCaptureTorchModeAuto),
-                                         @"on": @(AVCaptureTorchModeOn),
-                                         @"off": @(AVCaptureTorchModeOff)
-                                         }), AVCaptureTorchModeAuto, integerValue)
+    @"auto": @(AVCaptureTorchModeAuto),
+    @"on": @(AVCaptureTorchModeOn),
+    @"off": @(AVCaptureTorchModeOff)
+                                       }), AVCaptureTorchModeAuto, integerValue)
 
 
 @end
@@ -44,28 +44,28 @@ RCT_ENUM_CONVERTER(CKCameraTorchMode, (@{
 @implementation RCTConvert(CKCameraFlashMode)
 
 RCT_ENUM_CONVERTER(CKCameraFlashMode, (@{
-                                         @"auto": @(AVCaptureFlashModeAuto),
-                                         @"on": @(AVCaptureFlashModeOn),
-                                         @"off": @(AVCaptureFlashModeOff)
-                                         }), AVCaptureFlashModeAuto, integerValue)
+    @"auto": @(AVCaptureFlashModeAuto),
+    @"on": @(AVCaptureFlashModeOn),
+    @"off": @(AVCaptureFlashModeOff)
+                                       }), AVCaptureFlashModeAuto, integerValue)
 
 @end
 
 @implementation RCTConvert(CKCameraFocushMode)
 
 RCT_ENUM_CONVERTER(CKCameraFocushMode, (@{
-                                          @"on": @(CKCameraFocushModeOn),
-                                          @"off": @(CKCameraFocushModeOff)
-                                          }), CKCameraFocushModeOn, integerValue)
+    @"on": @(CKCameraFocushModeOn),
+    @"off": @(CKCameraFocushModeOff)
+                                        }), CKCameraFocushModeOn, integerValue)
 
 @end
 
 @implementation RCTConvert(CKCameraZoomMode)
 
 RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
-                                        @"on": @(CKCameraZoomModeOn),
-                                        @"off": @(CKCameraZoomModeOff)
-                                        }), CKCameraZoomModeOn, integerValue)
+    @"on": @(CKCameraZoomModeOn),
+    @"off": @(CKCameraZoomModeOff)
+                                      }), CKCameraZoomModeOn, integerValue)
 
 @end
 
@@ -110,6 +110,8 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 
 // frame for Scanner
 @property (nonatomic, strong) NSDictionary *scannerOptions;
+@property (nonatomic) BOOL scannable;
+@property (nonatomic) BOOL isScanning;
 @property (nonatomic) BOOL showFrame;
 @property (nonatomic) UIView *greenScanner;
 
@@ -134,6 +136,13 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 @implementation CKCamera
 
 #pragma mark - initializtion
+
+- (void)set:(BOOL)scannable{
+    self.scannable = scannable;
+    if(self.scannable){
+        self.isScanning = NO;
+    }
+}
 
 - (void)dealloc
 {
@@ -176,9 +185,11 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     self = [super initWithFrame:frame];
     
     if (self){
+        
+        [self set:YES];
         // Create the AVCaptureSession.
         self.session = [[AVCaptureSession alloc] init];
-
+        
         // Fit camera preview inside of viewport
         self.session.sessionPreset = AVCaptureSessionPresetPhoto;
         
@@ -322,7 +333,7 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
         }
         
         [self.session commitConfiguration];
-
+        
     } );
 }
 
@@ -678,7 +689,7 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     self.startFocusResetTimerAfterFocusing = YES;
     
     self.tapToFocusEngaged = YES;
-
+    
     // Animate focus rectangle
     CGFloat halfDiagonal = 73;
     CGFloat halfDiagonalAnimation = halfDiagonal*2;
@@ -713,7 +724,7 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     
     // Resetting focus to continuous focus, so not interested in resetting anymore
     self.startFocusResetTimerAfterFocusing = NO;
-
+    
     // Avoid showing reset-focus animation after each photo capture
     if (!self.tapToFocusEngaged) {
         return;
@@ -1123,14 +1134,14 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
     }
     else if (context == SessionRunningContext)
     {
-//        BOOL isSessionRunning = [change[NSKeyValueChangeNewKey] boolValue];
-//
-//        dispatch_async( dispatch_get_main_queue(), ^{
-//            // Only enable the ability to change camera if the device has more than one camera.
-//            self.cameraButton.enabled = isSessionRunning && ( [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo].count > 1 );
-//            self.recordButton.enabled = isSessionRunning;
-//            self.stillButton.enabled = isSessionRunning;
-//        } );
+        //        BOOL isSessionRunning = [change[NSKeyValueChangeNewKey] boolValue];
+        //
+        //        dispatch_async( dispatch_get_main_queue(), ^{
+        //            // Only enable the ability to change camera if the device has more than one camera.
+        //            self.cameraButton.enabled = isSessionRunning && ( [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo].count > 1 );
+        //            self.recordButton.enabled = isSessionRunning;
+        //            self.stillButton.enabled = isSessionRunning;
+        //        } );
     }
     else
     {
@@ -1144,18 +1155,25 @@ RCT_ENUM_CONVERTER(CKCameraZoomMode, (@{
 didOutputMetadataObjects:(NSArray<__kindof AVMetadataObject *> *)metadataObjects
        fromConnection:(AVCaptureConnection *)connection {
     
+    if(!self.scannable) return;
+    if(self.isScanning) return;
+    
     for(AVMetadataObject *metadataObject in metadataObjects)
     {
         if ([metadataObject isKindOfClass:[AVMetadataMachineReadableCodeObject class]] && [self isSupportedBarCodeType:metadataObject.type]) {
             
             AVMetadataMachineReadableCodeObject *code = (AVMetadataMachineReadableCodeObject*)[self.previewLayer transformedMetadataObjectForMetadataObject:metadataObject];
-            if (self.onReadCode && code.stringValue && ![code.stringValue isEqualToString:self.codeStringValue]) {
-                self.onReadCode(@{@"codeStringValue": code.stringValue,
-                                  @"count":@(arc4random_uniform(2) + 1),
-                                  @"total":@2
-                                });
-                [self stopAnimatingScanner];
-            }
+            
+                if (self.onReadCode && code.stringValue && ![code.stringValue isEqualToString:self.codeStringValue]) {
+                    if(!self.isScanning){
+                    self.onReadCode(@{@"codeStringValue": code.stringValue,
+                                      @"count":@(arc4random_uniform(2) + 1),
+                                      @"total":@2
+                                    });
+                        self.isScanning = YES;
+                    }
+                    [self stopAnimatingScanner];
+                }
         }
     }
 }
