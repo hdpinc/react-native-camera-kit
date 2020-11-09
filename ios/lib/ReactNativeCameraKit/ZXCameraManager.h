@@ -6,9 +6,6 @@
 #import "RCTConvert.h"
 #endif
 
-
-
 @interface ZXCameraManager : RCTViewManager
-
 
 @end

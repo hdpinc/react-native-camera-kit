@@ -60,7 +60,7 @@
         self.scanning = NO;
         [self.capture stop];
     }
-
+    
     if (block) {
         block(YES);
     }
@@ -187,7 +187,7 @@
                                        @"parity":parity,
                                        @"total":[NSNumber numberWithInt: total + 1],
                                        @"count":[NSNumber numberWithInt: count + 1]
-                                       };
+    };
     if (self.onReadCode){
         self.onReadCode(resultDictionary);
     }
