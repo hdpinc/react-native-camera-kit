@@ -20,4 +20,16 @@ RCT_EXPORT_MODULE()
 
 RCT_EXPORT_VIEW_PROPERTY(onReadCode, RCTDirectEventBlock)
 
+RCT_EXPORT_METHOD(setShouldScan:(BOOL)shouldScan
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+    
+    [self.camera setShouldScan:shouldScan callback:^(BOOL success) {
+        if (resolve) {
+            resolve([NSNumber numberWithBool:success]);
+        }
+    }];
+}
+
+
 @end

@@ -8,6 +8,10 @@
 
 #import <ZXingObjC/ZXingObjC.h>
 
+typedef void (^CallbackBlock)(BOOL success);
+
 @interface ZXCamera : UIView <ZXCaptureDelegate>
+
+- (void)setShouldScan:(BOOL)shouldScan callback:(CallbackBlock)block;
 
 @end

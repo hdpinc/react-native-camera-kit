@@ -14,6 +14,7 @@
 @property (nonatomic) BOOL scanning;
 @property (nonatomic) UIView *scanRectView;
 @property (nonatomic, strong) RCTDirectEventBlock onReadCode;
+@property (nonatomic) BOOL shouldScan;
 @end
 
 @implementation ZXCamera
@@ -46,7 +47,23 @@
     [self.layer addSublayer:self.capture.layer];
     
     self.scanning = NO;
+    self.shouldScan = YES;
     return self;
+}
+
+- (void)setShouldScan:(BOOL)shouldScan callback:(CallbackBlock)block {
+    self.shouldScan = shouldScan;
+    if(shouldScan) {
+        self.scanning = YES;
+        [self.capture start];
+    }else{
+        self.scanning = NO;
+        [self.capture stop];
+    }
+
+    if (block) {
+        block(YES);
+    }
 }
 
 -(void)reactSetFrame:(CGRect)frame {
@@ -59,12 +76,10 @@
     self.frame = frame;
     self.capture.layer.frame = self.bounds;
     
-    CGFloat frameWidth = self.frame.size.width - 2 * 30;
+    CGFloat frameWidth = self.frame.size.width - 2 * 45;
     CGFloat frameHeight = frameWidth;
     self.scanRectView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, frameWidth, frameHeight)];
     self.scanRectView.center = self.center;
-    self.scanRectView.layer.borderColor = [UIColor redColor].CGColor;
-    self.scanRectView.layer.borderWidth = 3.0f;
     [self addSubview:self.scanRectView];
     
     [self applyOrientation];
@@ -148,6 +163,7 @@
 
 - (void)captureResult:(ZXCapture *)capture result:(ZXResult *)result{
     if (!self.scanning) return;
+    if (!self.shouldScan) return;
     if(result.barcodeFormat != kBarcodeFormatQRCode) return;
     
     [self.capture stop];
