@@ -110,6 +110,13 @@ public class CameraModule extends ReactContextBaseJavaModule {
         new Capture(getReactApplicationContext(), saveToCameraRoll).execute(promise);
     }
 
+    @ReactMethod
+    public void setShouldScan(boolean shouldScan, Promise promise) {
+        promise.resolve(CameraViewManager.setShouldScan(shouldScan));
+    }
+
+
+
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         cameraPermission.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
