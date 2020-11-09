@@ -1,7 +1,10 @@
+import React, { Component } from 'react';
+import CameraKitCamera from './CameraKitCamera';
+
 export default class ZXCamera extends React.Component {
 
-  // TODO: Android QR reader
   render() {
-    return null;
+    	return <CameraKitCamera {...this.props}/>
   }
+
 }

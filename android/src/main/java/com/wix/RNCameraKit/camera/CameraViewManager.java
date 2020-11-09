@@ -14,7 +14,7 @@ import android.view.Display;
 import android.view.OrientationEventListener;
 import android.view.WindowManager;
 
-// import android.util.Log;
+import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
@@ -388,8 +388,21 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
         scanner = new BarcodeScanner(previewCallback, new BarcodeScanner.ResultHandler() {
             @Override
             public void handleResult(Result result) {
+
+                byte[] rawqrcode = result.getRawBytes();
+                int count = 1, total = 1, parity = 0;
+
+                if ((rawqrcode[0] & 0xf0) == 0x30){
+                        count = (rawqrcode[0] & 0x0f) + 1;
+                        total = ((rawqrcode[1] & 0xf0) >> 4) + 1;
+                        parity = ((rawqrcode[1] & 0x0f) << 4) | ((rawqrcode[2] & 0xf0) >> 4);
+                }
+
                 WritableMap event = Arguments.createMap();
                 event.putString("codeStringValue", result.getText());
+                event.putInt("total", total);
+                event.putInt("count", count);
+                event.putInt("parity",parity);
                 if (!cameraViews.empty())
                     reactContext.getJSModule(RCTEventEmitter.class).receiveEvent(cameraViews.peek().getId(), "onReadCode", event);
             }
