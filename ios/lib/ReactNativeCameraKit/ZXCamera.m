@@ -30,6 +30,9 @@
 - (void)removeReactSubview:(UIView *)subview
 {
     [subview removeFromSuperview];
+    [self.capture.layer removeFromSuperlayer];
+    self.capture.delegate = nil;
+    [self.capture stop];
     [super removeReactSubview:subview];
 }
 
@@ -83,7 +86,7 @@
     self.frame = frame;
     self.capture.layer.frame = self.bounds;
     
-    CGFloat frameWidth = self.frame.size.width;
+    CGFloat frameWidth = self.frame.size.width - 2 * 45;
     CGFloat frameHeight = frameWidth;
     self.scanRectView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, frameWidth, frameHeight)];
     self.scanRectView.center = self.center;
