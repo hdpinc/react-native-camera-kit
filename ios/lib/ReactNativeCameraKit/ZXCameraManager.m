@@ -19,6 +19,8 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_VIEW_PROPERTY(onReadCode, RCTDirectEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(heightForScannerFrame, NSInteger)
+RCT_EXPORT_VIEW_PROPERTY(scannerFrameOffset, NSInteger)
 
 RCT_EXPORT_METHOD(setShouldScan:(BOOL)shouldScan
                   resolve:(RCTPromiseResolveBlock)resolve

@@ -14,6 +14,8 @@
 @property (nonatomic) BOOL scanning;
 @property (nonatomic) UIView *scanRectView;
 @property (nonatomic, strong) RCTDirectEventBlock onReadCode;
+@property (nonatomic,) NSInteger heightForScannerFrame;
+@property (nonatomic,) NSInteger scannerFrameOffset;
 @property (nonatomic) BOOL shouldScan;
 @end
 
@@ -51,10 +53,7 @@
     self.capture = [[ZXCapture alloc] init];
     self.capture.sessionPreset = AVCaptureSessionPreset1920x1080;
     self.capture.camera = self.capture.back;
-    
-    
     self.capture.delegate = self;
-    [self.layer addSublayer:self.capture.layer];
     
     self.scanning = NO;
     self.shouldScan = YES;
@@ -84,12 +83,18 @@
 #endif
     
     self.frame = frame;
-    self.capture.layer.frame = self.bounds;
     
-    CGFloat frameWidth = self.frame.size.width - 2 * 45;
+    // プレビュー描画
+    self.capture.layer.frame = self.frame;
+    [self.layer addSublayer:self.capture.layer];
+    
+    // ガイド描画
+    CGFloat frameWidth = self.heightForScannerFrame;
     CGFloat frameHeight = frameWidth;
     self.scanRectView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, frameWidth, frameHeight)];
     self.scanRectView.center = self.center;
+    self.scanRectView.layer.borderColor = [UIColor whiteColor].CGColor;
+    self.scanRectView.layer.borderWidth = 3.0f;
     [self addSubview:self.scanRectView];
     
     [self applyOrientation];
@@ -124,18 +129,18 @@
             scanRectRotation = 90;
             break;
     }
-    self.capture.layer.frame = self.frame;
     CGAffineTransform transform = CGAffineTransformMakeRotation((CGFloat) (captureRotation / 180 * M_PI));
     [self.capture setTransform:transform];
     [self.capture setRotation:scanRectRotation];
-    
     [self applyRectOfInterest:orientation];
 }
 
 - (void)applyRectOfInterest:(UIInterfaceOrientation)orientation {
-    CGFloat scaleVideoX, scaleVideoY;
+    CGFloat scaleVideoX, scaleVideoY ,scaleVideo;
     CGFloat videoSizeX, videoSizeY;
-    CGRect transformedVideoRect = self.scanRectView.frame;
+    
+    CGRect transformedVideoRect = CGRectMake(0, 0, self.scanRectView.frame.size.width + self.scannerFrameOffset, self.scanRectView.frame.size.height + self.scannerFrameOffset);
+    
     if([self.capture.sessionPreset isEqualToString:AVCaptureSessionPreset1920x1080]) {
         videoSizeX = 1080;
         videoSizeY = 1920;
@@ -146,22 +151,18 @@
     if(UIInterfaceOrientationIsPortrait(orientation)) {
         scaleVideoX = self.capture.layer.frame.size.width / videoSizeX;
         scaleVideoY = self.capture.layer.frame.size.height / videoSizeY;
-        
-        // Convert CGPoint under portrait mode to map with orientation of image
-        // because the image will be cropped before rotate
-        // reference: https://github.com/TheLevelUp/ZXingObjC/issues/222
-        CGFloat realX = transformedVideoRect.origin.y;
-        CGFloat realY = self.capture.layer.frame.size.width - transformedVideoRect.size.width - transformedVideoRect.origin.x;
-        CGFloat realWidth = transformedVideoRect.size.height;
-        CGFloat realHeight = transformedVideoRect.size.width;
-        transformedVideoRect = CGRectMake(realX, realY, realWidth, realHeight);
-        
     } else {
         scaleVideoX = self.capture.layer.frame.size.width / videoSizeY;
         scaleVideoY = self.capture.layer.frame.size.height / videoSizeX;
     }
-    CGAffineTransform _captureSizeTransform = CGAffineTransformMakeScale(1.0/scaleVideoX, 1.0/scaleVideoY);
-    self.capture.scanRect = CGRectApplyAffineTransform(transformedVideoRect, _captureSizeTransform);
+    
+    scaleVideo = scaleVideoX < scaleVideoY ?scaleVideoX : scaleVideoY;
+    CGAffineTransform _captureSizeTransform = CGAffineTransformMakeScale(1.0/scaleVideo, 1.0/scaleVideo);
+    CGSize realSize = CGSizeApplyAffineTransform(transformedVideoRect.size, _captureSizeTransform);
+    // プレビューレイヤーはAVLayerVideoGravityResizeAspectFillで貼り付けられているので実際の映像の中央を読み取る
+    CGPoint realPoint = CGPointMake((videoSizeY-realSize.width)*0.5, (videoSizeX-realSize.height)*0.5);
+    self.capture.scanRect = CGRectMake(realPoint.x, realPoint.y, realSize.width, realSize.height);
+    
     [self.capture start];
 }
 
