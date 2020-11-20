@@ -459,6 +459,11 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
         view.setSurfaceBgColor(color);
     }
 
+    @ReactProp(name = "heightForScannerFrame", defaultInt = 200)
+    public void setBarcodeFrameHeight(CameraView view, int height) {
+        view.setBarcodeFrameHeight(height);
+    }
+
     public static synchronized Rect getFramingRectInPreview(int previewWidth, int previewHeight) {
         return cameraViews.peek().getFramingRectInPreview(previewWidth, previewHeight);
     }

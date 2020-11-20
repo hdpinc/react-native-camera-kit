@@ -20,8 +20,11 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
     private boolean showFrame;
     private Rect frameRect;
     private BarcodeFrame barcodeFrame;
-    @ColorInt private int frameColor = Color.GREEN;
+    @ColorInt private int frameColor = Color.WHITE;
     @ColorInt private int laserColor = Color.RED;
+    private int width;
+    private int height;
+    private int barcodeFrameHeight = 200;
 
     public CameraView(ThemedReactContext context) {
         super(context);
@@ -40,6 +43,13 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
         if (barcodeFrame != null) {
             ((View) barcodeFrame).layout(0, 0, actualPreviewWidth, height);
         }
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        width = getMeasuredWidth();
+        height = getMeasuredHeight();
     }
 
     @Override
@@ -97,6 +107,7 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
             barcodeFrame = new BarcodeFrame(getContext());
             barcodeFrame.setFrameColor(frameColor);
             barcodeFrame.setLaserColor(laserColor);
+            barcodeFrame.setFrameHeight(barcodeFrameHeight);
             addView(barcodeFrame);
             requestLayout();
         }
@@ -104,23 +115,19 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
 
     public Rect getFramingRectInPreview(int previewWidth, int previewHeight) {
         if (frameRect == null) {
+            frameRect = new Rect(0, 0, previewWidth, previewHeight);
+
             if (barcodeFrame != null) {
+                float scaleX = (float) width / previewWidth;
+                float scaleY = (float) height / previewHeight;
+                float scale = scaleX > scaleY ? scaleX : scaleY;
+
                 Rect framingRect = new Rect(barcodeFrame.getFrameRect());
-                int frameWidth = barcodeFrame.getWidth();
-                int frameHeight = barcodeFrame.getHeight();
-
-                if (previewWidth < frameWidth) {
-                    framingRect.left = framingRect.left * previewWidth / frameWidth;
-                    framingRect.right = framingRect.right * previewWidth / frameWidth;
-                }
-                if (previewHeight < frameHeight) {
-                    framingRect.top = framingRect.top * previewHeight / frameHeight;
-                    framingRect.bottom = framingRect.bottom * previewHeight / frameHeight;
-                }
-
-                frameRect = framingRect;
-            } else {
-                frameRect = new Rect(0, 0, previewWidth, previewHeight);
+                int scanFrameSize = (int)(framingRect.width() * (1 / scale));
+                frameRect.left = (previewWidth - scanFrameSize)/2;
+                frameRect.right = frameRect.left + scanFrameSize;
+                frameRect.top = (previewHeight - scanFrameSize)/2;
+                frameRect.bottom = frameRect.top + scanFrameSize;
             }
         }
         return frameRect;
@@ -147,5 +154,12 @@ public class CameraView extends FrameLayout implements SurfaceHolder.Callback {
      */
     public void setSurfaceBgColor(@ColorInt int color) {
         surface.setBackgroundColor(color);
+    }
+
+    public void setBarcodeFrameHeight(int height) {
+        this.barcodeFrameHeight = height;
+        if (barcodeFrame != null) {
+            barcodeFrame.setFrameHeight(height);
+        }
     }
 }
