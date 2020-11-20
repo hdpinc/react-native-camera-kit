@@ -156,7 +156,7 @@
         scaleVideoY = self.capture.layer.frame.size.height / videoSizeX;
     }
     
-    scaleVideo = scaleVideoX < scaleVideoY ?scaleVideoX : scaleVideoY;
+    scaleVideo = scaleVideoX > scaleVideoY ? scaleVideoX : scaleVideoY;
     CGAffineTransform _captureSizeTransform = CGAffineTransformMakeScale(1.0/scaleVideo, 1.0/scaleVideo);
     CGSize realSize = CGSizeApplyAffineTransform(transformedVideoRect.size, _captureSizeTransform);
     // プレビューレイヤーはAVLayerVideoGravityResizeAspectFillで貼り付けられているので実際の映像の中央を読み取る
