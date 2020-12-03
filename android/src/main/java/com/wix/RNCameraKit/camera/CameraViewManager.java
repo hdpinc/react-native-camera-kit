@@ -402,7 +402,7 @@ public class CameraViewManager extends SimpleViewManager<CameraView> {
                 byte[] rawqrcode = result.getRawBytes();
                 int count = 1, total = 1, parity = 0;
 
-                if (rawqrcode.length > 0 && (rawqrcode[0] & 0xf0) == 0x30){
+                if (rawqrcode != null && rawqrcode.length > 0 && (rawqrcode[0] & 0xf0) == 0x30){
                     // ０からカウントされるのでRNには+1した状態でコールバックする
                     count = (rawqrcode[0] & 0x0f) + 1;
                     total = ((rawqrcode[1] & 0xf0) >> 4) + 1;
